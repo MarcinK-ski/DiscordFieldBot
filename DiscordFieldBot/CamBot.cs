@@ -6,12 +6,12 @@ namespace DiscordFieldBot
 {
     class CamBot
     {
-        private static SshTools _ssh = new SshTools("usr", "192.168.10.10");
+        private static readonly ulong _readOnlyChannel = ulong.Parse(Helper.channels["Cam"]);
 
-        private static readonly string _camIp = "192.168.10.1";
-        private static readonly string _port = "999";
+        private static SshTools _ssh = new SshTools(Helper.sshSettings["User"], Helper.sshSettings["Ip"]);
 
-        private static readonly ulong _readOnlyChannel = 99;
+        private static readonly string _camIp = Helper.camSettings["Ip"];
+        private static readonly string _port = Helper.camSettings["Port"];
 
         public static async Task CamBotCommandsAsync(string command, SocketMessage message)
         {
@@ -66,7 +66,7 @@ namespace DiscordFieldBot
             }
             else
             {
-                await channel.SendMessageAsync("Połączenie nie jest, ani nie było nawiązane.");
+                await channel.SendMessageAsync("Połączenie nie jest nawiązane.");
             }
         }
 

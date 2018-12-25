@@ -28,5 +28,10 @@ namespace DiscordFieldBot
 
             Grade = mark;
         }
+
+        public override string ToString()
+        {
+            return $"Ocena: {Grade} Waga: {Weight}";
+        }
     }
 }

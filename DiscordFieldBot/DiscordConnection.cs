@@ -7,8 +7,9 @@ namespace DiscordFieldBot
 {
     public class DiscordConnection
     {
+        private readonly string _token = Helper.config["Token"];
+
         public static DiscordSocketClient socketClient;
-        private readonly string _token = "TOKEN";
 
         public async Task MainAsync()
         {
@@ -70,7 +71,7 @@ namespace DiscordFieldBot
 
         private Task Logging(LogMessage arg)
         {
-            Console.WriteLine("--- " + arg.Message);
+            Console.WriteLine($"{DateTime.Now} \n--- {arg.Message} \n");
             return Task.CompletedTask;
         }
 

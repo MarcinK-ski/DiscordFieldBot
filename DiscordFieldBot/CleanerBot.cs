@@ -7,7 +7,7 @@ namespace DiscordFieldBot
 {
     class CleanerBot
     {
-        private static readonly ulong _permitedUserId = 10;
+        private static readonly ulong _permitedUserId = ulong.Parse(Helper.config["CleanerPermited"]);
 
         public static async Task DeleteLastMessages(string command, SocketMessage message)
         {

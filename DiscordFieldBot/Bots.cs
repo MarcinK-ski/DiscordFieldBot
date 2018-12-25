@@ -5,10 +5,11 @@ namespace DiscordFieldBot
 {
     public class Bots
     {
+        private static readonly int _OFFSET = int.Parse(Helper.config["Offset"]);
+
         public static List<char> botsPrefixes = GetAllBotsPrefixes();
 
-        private const int _OFFSET = 36;
-        
+
         public enum BotType
         {
             CamBot,

@@ -2,11 +2,17 @@
 using System.IO;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
+using Microsoft.Extensions.Configuration;
 
 namespace DiscordFieldBot
 {
     class Helper
     {
+        public static IConfiguration config = new ConfigurationBuilder().AddJsonFile("appsettings.json", false, true).Build();
+        public static IConfigurationSection channels = config.GetSection("Channels");
+        public static IConfigurationSection camSettings = config.GetSection("CamSettings");
+        public static IConfigurationSection sshSettings = config.GetSection("SshSettings");
+
         public static void BinarySerializeObject(string path, object obj)
         {
             using (StreamWriter streamWriter = new StreamWriter(path))

@@ -1,4 +1,8 @@
-﻿namespace DiscordFieldBot
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace DiscordFieldBot
 {
     class Strings
     {

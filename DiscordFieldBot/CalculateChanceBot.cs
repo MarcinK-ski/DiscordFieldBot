@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Discord.WebSocket;
@@ -8,9 +9,10 @@ namespace DiscordFieldBot
 {
     public class CalculateChanceBot
     {
+        private static readonly string _FILE_NAME = Helper.config["ChancesBinary"];
+        private static ulong _mainChannelId = ulong.Parse(Helper.channels["Chances"]);
+
         private static Dictionary<string, Subject> _subjects = new Dictionary<string, Subject>();
-        private const string _FILE_NAME = "CalcChanceSaved.bin";
-        private static ulong _mainChannelId = 100;
         private static ISocketMessageChannel _mainChannel = (ISocketMessageChannel)DiscordConnection.socketClient.GetChannel(_mainChannelId);
         
         public static void DeserializeDictionary()
@@ -118,17 +120,19 @@ namespace DiscordFieldBot
         
         private static string TryMark(int parametersCount, CommandParameters commandParameters, ref string modificationCompletedStatement)
         {
+            modificationCompletedStatement = null;
+
             if (parametersCount < 1)
             {
                 return "Chcesz `dodać` czy `wyświetlić` oceny? Wpisz odpowiednią komendę...";
             }
 
-            if (parametersCount < 2)
-            {
-                return "Brakuje jednego z argumentów. Pamietaj o `nazwie` przedmiotu!";
-            }
+            string addToSubject = null;
 
-            string addToSubject = commandParameters.Parameters[1];
+            if (parametersCount > 1)
+            {
+                addToSubject = commandParameters.Parameters[1];
+            }
 
             if (new Regex("(dodaj)|d$").IsMatch(commandParameters.Parameters[0].Trim()))
             {
@@ -161,18 +165,121 @@ namespace DiscordFieldBot
             }
             else if (new Regex("(wy[s|ś]wietl)|w$").IsMatch(commandParameters.Parameters[0].Trim()))
             {
-                if (_subjects.ContainsKey(addToSubject))
+
+                if (addToSubject != null)
                 {
-                    string resultToSend = $"Oto lista dodanych ocen z przedmiotu: `{addToSubject}`\n";
-                    foreach (var item in _subjects[addToSubject].GetMarksList())
+                    if(!_subjects.ContainsKey(addToSubject))
                     {
-                        resultToSend += $"*  `{item.Grade}` z wagą: {item.Weight}\n";
+                        return "Brak poprawnego przedmiotu do wyświetlenia";
+                    }
+                }
+
+                StringBuilder resultToSend = new StringBuilder();
+
+                foreach (var subject in _subjects)
+                {
+                    Subject currentSubject = subject.Value;
+
+                    if(addToSubject == null)
+                    {
+                        resultToSend.Append($"{currentSubject.ShowSubjectDetails(true)}");
+                    }
+                    else
+                    {
+                        if(subject.Key == addToSubject)
+                        {
+                            return currentSubject.ShowSubjectDetails();
+                        }
+                    }
+                }
+
+                if(resultToSend.Length > 2000)
+                {
+                    return "Nie można wyświetlić wszystkich ocen ze względu na ograniczenia ilości znaków";
+                }
+                else if(resultToSend.Length == 0)
+                {
+                    return "Brak ocen do wyświetlenia";
+                }
+
+                return resultToSend.ToString();
+            }
+            else if (new Regex("(archiwum)|a$").IsMatch(commandParameters.Parameters[0].Trim()))
+            {
+                if(parametersCount > 1)
+                {
+                    if (new Regex("(semestry)|s$").IsMatch(commandParameters.Parameters[1].Trim()))
+                    {
+                        StringBuilder toReturn = new StringBuilder();
+
+                        foreach (var subject in _subjects)
+                        {
+                            toReturn.AppendLine($"Dla przedmiotu: {subject.Key} {subject.Value.GetAllTerms()}");
+                        }
+
+                        return toReturn.ToString();
                     }
 
-                    if (_subjects[addToSubject].GetMarksList().Count < 1)
-                        return $"Brak ocen z przedmiotu `{addToSubject}`";
+                    if (parametersCount > 3)
+                    {
+                        if (!Int32.TryParse(commandParameters.Parameters[2], out int yearNo))
+                        {
+                            return "Problem z castowaniem `numeru roku`";
+                        }
 
-                    return resultToSend;
+                        if (!Int32.TryParse(commandParameters.Parameters[3], out int termNo))
+                        {
+                            return "Problem z castowaniem `numeru semestru`";
+                        }
+
+
+                        if (new Regex("(wyswietl)|w$").IsMatch(commandParameters.Parameters[1].Trim()))
+                        {
+                            StringBuilder toReturn = new StringBuilder();
+
+                            foreach (var subject in _subjects)
+                            {
+                                toReturn.Append(_subjects[subject.Key].GetArchivizedMarks(new Term(yearNo, termNo)));
+                            }
+
+                            return toReturn.ToString();
+                        }
+                        else if (new Regex("(archiwizuj)|a$").IsMatch(commandParameters.Parameters[1].Trim()))
+                        {
+                            bool isSomethingArchived = false;
+
+                            foreach (var subject in _subjects)
+                            {
+                                if(_subjects[subject.Key].IsTermArchived(new Term(yearNo, termNo)))
+                                {
+                                    modificationCompletedStatement += $"Przedmiot {subject.Key} już został zarchiwizowany dla takiego semestru! \n";
+                                    continue;
+                                }
+
+                                _subjects[subject.Key].ArchivizeMarks(yearNo, termNo);
+                                isSomethingArchived = true;
+                            }
+
+                            if(isSomethingArchived)
+                            {
+                                modificationCompletedStatement += "\n\nZarchiwizowano!";
+                            }
+                            else
+                            {
+                                modificationCompletedStatement += "\n\nNie było czego archiwizować!";
+                            }
+
+                            return "Archiwizacja ocen...\n\n";
+                        }
+                    }
+                    else
+                    {
+                        return "Podano za mało parametrów! Template: *a w/a <numer_roku> <numer_semestru>";
+                    }
+                }
+                else
+                {
+                    return "Nie podano pocji dla *archiwum*";
                 }
             }
 
@@ -187,7 +294,7 @@ namespace DiscordFieldBot
             {
                 if (item.Value.GetLastMarksAvg() > 0)
                 {
-                    avg += ((item.Value.GetLastMarksAvg() * 100) / item.Value.Get100ProcentOfMarks()) * item.Value.SubjectWeight;   //Z proporcji * waga przedmiotu
+                    avg += ((item.Value.GetLastMarksAvg(true) * 100) / item.Value.Get100ProcentOfMarks()) * item.Value.SubjectWeight;   //Z proporcji * waga przedmiotu
 
                     i += item.Value.SubjectWeight;
                 }
@@ -198,7 +305,7 @@ namespace DiscordFieldBot
 
             avg /= i;
 
-            return $"Twoje szanse wynoszą: {avg}";
+            return $"Twoje szanse wynoszą: *{avg}*";
         }
 
         private static string TryHelp()
@@ -212,16 +319,21 @@ namespace DiscordFieldBot
                     $"\n            parametr1 => `dodaj` albo `d` lub `wyswietl` albo `w` " +
                     $"\n            *PONIZSZE parametry występują jedynie w przypadku wybrania operacji `dodaj`*" +
                     $"\n            parametr2 => `nazwa` *(BEZ SPACJI W NAZWIE!)*" +
-                    $"\n            parametr3 => `wagaPrzedmiotu` *(1-10)*" +
+                    $"\n            parametr3 => `wagaPrzedmiotu` *(1-10)*\n\n" +
                     $"\n    - `ocena` lub `o` - dodanie nowej oceny," +
                     $"\n            parametr1 => `dodaj` albo `d` lub `wyswietl` albo `w` " +
                     $"\n            parametr2 => `nazwa przedmiotu`, " +
                     $"\n            *PONIZSZE parametry występują jedynie w przypadku wybrania operacji `dodaj`*" +
                     $"\n            parametr3 => `ocena`, " +
-                    $"\n            parametr4 => `wagaOceny` *(1-{Marks.MAX_WEIGHT})*" +
-                    $"\n    - `obecnosc` lub `ob` - dodanie nowej nieobecnosci (nie zaimplemenotwano!)," +
-                    $"\n    - `szanse` lub `s` - sprawdza jakie są szanse przy aktualnym stanie," +
-                    $"\n    - `pomoc` - wyświetla pomoc, czyli tę listę komend.";
+                    $"\n            parametr4 => `wagaOceny` *(1-{Marks.MAX_WEIGHT})*\n" +
+                    $"\n        + (opcja rozpoczynana od `o`, ponieważ należy do podmenu *ocen*) `archiwum` lub `a` - archiwizowanie ocen z semestru" +
+                    $"\n            parametr1 => `semestry` albo `s` lub `wyswietl` albo `w` lub `archiwizuj` albo `a` " +
+                    $"\n            *PONIZSZE parametry występują jedynie w przypadku wybrania operacji `archiwizuj` lub `wyswietl`*" +
+                    $"\n            parametr2 => `Numer roku` (np. 1 lub 2 lub 3. !!!!NIE 2018!!!!" +
+                    $"\n            parametr3 => `Numer semestru`\n\n" +
+                    $"\n    - `obecnosc` lub `ob` - dodanie nowej nieobecnosci (nie zaimplemenotwano!),\n\n" +
+                    $"\n    - `szanse` lub `s` - sprawdza jakie są szanse przy aktualnym stanie,\n\n" +
+                    $"\n    - `pomoc` - wyświetla pomoc, czyli tę listę komend.\n\n";
         }
 
         private static async Task<bool> AddNewSubject(string subjectName, sbyte subjectWeight)

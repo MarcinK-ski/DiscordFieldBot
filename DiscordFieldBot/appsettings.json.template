@@ -1,0 +1,22 @@
+{
+  "ChancesBinary": "Chances.bin",
+  "Offset" :  "33",
+  
+  "Token": "TOKEN_HERE",
+  "CleanerPermited": "ADMIN_USER",
+
+  "CamSettings": {
+    "Ip": "DEVICE_IP",
+    "Port": "DEVICE_PORT"
+  },
+
+  "SshSettings": {
+    "Ip": "REMOTE_IP",
+    "User": "REMOTE_USER"
+  },
+
+  "Channels": {
+    "Cam": "CHANNEL_NO_HERE",
+    "Chances": "CHANNEL_NO_HERE"
+  }
+}
