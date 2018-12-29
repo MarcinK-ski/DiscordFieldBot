@@ -14,12 +14,8 @@ namespace DiscordFieldBot
         public async Task MainAsync()
         {
             socketClient = new DiscordSocketClient();
-            socketClient.MessageReceived += MessageHandler;
-            socketClient.Log += Logging;
-            socketClient.Ready += ClientReady;
 
-            await socketClient.LoginAsync(TokenType.Bot, _token);
-            await socketClient.StartAsync();
+            await Connect();
 
             Console.WriteLine("\nAll prefixes: ");
             for (int i = 0; i < Bots.botsPrefixes.Count; i++)
@@ -29,6 +25,30 @@ namespace DiscordFieldBot
             Console.WriteLine('\n');
 
             await Task.Delay(-1);
+        }
+
+        private async Task Reconnect(Exception arg)
+        {
+            Console.WriteLine($"EXC {DateTime.Now}: {arg.ToString()}");
+
+            socketClient = new DiscordSocketClient();
+            await Connect();
+        }
+
+        private async Task Connect()
+        {
+            AddEventsMethods();
+
+            await socketClient.LoginAsync(TokenType.Bot, _token);
+            await socketClient.StartAsync();
+        }
+
+        private void AddEventsMethods()
+        {
+            socketClient.MessageReceived += MessageHandler;
+            socketClient.Log += Logging;
+            socketClient.Ready += ClientReady;
+            socketClient.Disconnected += Reconnect;
         }
 
         private async Task MessageHandler(SocketMessage message)
