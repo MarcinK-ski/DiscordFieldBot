@@ -2,6 +2,7 @@
 using Discord;
 using Discord.WebSocket;
 using System.Threading.Tasks;
+using System.IO;
 
 namespace DiscordFieldBot
 {
@@ -24,15 +25,21 @@ namespace DiscordFieldBot
             }
             Console.WriteLine('\n');
 
+            var watchdogTimer = new System.Threading.Timer(async (e) =>
+            {
+                await UpdateWatchdogFile();
+            }
+            , null, TimeSpan.Zero, TimeSpan.FromMinutes(2));
+
             await Task.Delay(-1);
         }
 
-        private async Task Reconnect(Exception arg)
+        private async Task UpdateWatchdogFile()
         {
-            Console.WriteLine($"EXC {DateTime.Now}: {arg.ToString()}");
-
-            socketClient = new DiscordSocketClient();
-            await Connect();
+            using (StreamWriter writer = new StreamWriter("DFBWatch"))
+            {
+                await writer.WriteLineAsync($"{DateTime.Now} {socketClient.ConnectionState}");
+            }
         }
 
         private async Task Connect()
@@ -48,7 +55,6 @@ namespace DiscordFieldBot
             socketClient.MessageReceived += MessageHandler;
             socketClient.Log += Logging;
             socketClient.Ready += ClientReady;
-            socketClient.Disconnected += Reconnect;
         }
 
         private async Task MessageHandler(SocketMessage message)
