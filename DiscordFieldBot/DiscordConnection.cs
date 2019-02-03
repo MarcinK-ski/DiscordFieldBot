@@ -12,6 +12,9 @@ namespace DiscordFieldBot
 
         public static DiscordSocketClient socketClient;
 
+        static ConnectionState _lastConnectionState = ConnectionState.Disconnected;
+        static DateTime _lastConnectionStateTS = DateTime.Now;
+
         public async Task MainAsync()
         {
             socketClient = new DiscordSocketClient();
@@ -36,9 +39,15 @@ namespace DiscordFieldBot
 
         private async Task UpdateWatchdogFile()
         {
-            using (StreamWriter writer = new StreamWriter("DFBWatch"))
+            if(_lastConnectionState != socketClient.ConnectionState)
             {
-                await writer.WriteLineAsync($"{DateTime.Now} {socketClient.ConnectionState}");
+                _lastConnectionState = socketClient.ConnectionState;
+                _lastConnectionStateTS = DateTime.Now;
+
+                using (StreamWriter writer = new StreamWriter("DFBWatch"))
+                {
+                    await writer.WriteLineAsync($"{_lastConnectionStateTS} {_lastConnectionState}");
+                }
             }
         }
 
@@ -63,7 +72,7 @@ namespace DiscordFieldBot
 
             if (Bots.botsPrefixes.Exists(s => s == messagePrefix))
             {
-                Console.WriteLine($"Command: {message.Content} from user {message.Author.Username}#{message.Author.Id}");
+                Console.WriteLine($"{DateTime.Now} -- Command: {message.Content} from user {message.Author.Username}#{message.Author.Id}");
 
                 Bots.BotType botType = Bots.GetBotType(messagePrefix);
 
